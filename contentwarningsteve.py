@@ -11,4 +11,4 @@ async def ping(ctx):
 async def takecaresteve(ctx):
 	await ctx.send('you too')
 
-bot.run('NjA1ODM2MzcwNzQ5MDMwNDkw.XUCVYg.Ajcuh_sZGvz9-c-ovM_9Rf05Xo4')
+bot.run('NjA1ODM2MzcwNzQ5MDMwNDkw.XUDRcQ.Mz9kAdGz9MwdgQWAC8NLORhYMKs')
