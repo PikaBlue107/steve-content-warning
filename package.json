@@ -1,0 +1,8 @@
+{
+	"name": "Steve,Content Warning Specialist",
+	"version": "0.0.1",
+	"description": "Automatically hides specified trigger words behind spoiler tags.",
+	"main": "stevecontentwarning.py",
+	"author": "Melody Griesen",
+	"dependencies": {}
+}
