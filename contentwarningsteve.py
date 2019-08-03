@@ -5,8 +5,15 @@ import json
 
 with open("auth.json", "r") as auth_file:
 	auth_string = json.load(auth_file)["token"]
-#TODO exit if auth.json not found
-
+with open("package.json", "r") as data_file:
+	data = json.load(data_file)
+#TODO exit if auth.json or package.json not found
+BOT_NAME = data["name"]
+BOT_VERSION = data["version"]
+BOT_DESC = data["description"]
+BOT_MAIN = data["main"]
+BOT_AUTHOR = data["author"]
+BOT_DEPENDENCIES = data["dependencies"]
 BOT_ID = 605836370749030490
 TESTING_ID = 607087546333265920
 
