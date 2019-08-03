@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Steve stuff
+auth.json
+
 # C extensions
 *.so
 
