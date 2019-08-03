@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import client
+from discord import errors
 import json
 
 
@@ -61,21 +62,23 @@ OWNER_ID = 138461123899949057
 
 bot = commands.Bot(command_prefix='>', description = BOT_DESC, owner_id = OWNER_ID, activity = discord.Activity(name = "Listening Closely"))
 
+#TODO remove
 @bot.command()
 async def ping(channel):
 	await channel.send('pong')
 
+#TODO remove
 @bot.command()
 async def takecaresteve(channel):
 	await channel.send('you too')
 
-@bot.command()
+@bot.command()	#TODO delete_after?
 async def seelist(channel, confirm=None):
 	#TODO are you sure?
 	print(data["filters"])
 	await channel.send(data["filters"])
 
-@bot.command()
+@bot.command()	#TODO delete_after?
 async def add(channel, keyword):
 	data["filters"].append(keyword)
 	with open("data.json", "w") as data_file:
@@ -84,7 +87,7 @@ async def add(channel, keyword):
 	print(str)
 	await channel.send(str)
 
-@bot.command()
+@bot.command()	#TODO delete_after?
 async def remove(channel, keyword):
 	try:
 		data["filters"].remove(keyword)
@@ -94,7 +97,7 @@ async def remove(channel, keyword):
 		print("Word not fould in filter list.")
 		await channel.send("Word not fould in filter list.")
 
-def is_not_me():
+def is_not_me():	#TODO get working
 	print("hello?")
 	def  predicate(ctx):
 		print(ctx.message.author.id, BOT_ID)
@@ -109,45 +112,40 @@ async def shutdown(channel):
 	await bot.logout()
 	exit()
 
-#@bot.listen('on_message')
-@is_not_me()
-async def copy_message(msg):
-	if msg.author.bot: return
-	channel = msg.channel
-	if channel.id != TESTING_ID: return
-	await channel.send(msg.content)
-
 @bot.listen("on_message")
 async def filter_message(msg):
-	if msg.author.bot: return
+
+	#TODO turn into decorations
 	channel = msg.channel
+	if msg.author.bot: return
 	if channel.id != TESTING_ID: return
+
+	#Nested fucntion, inserts spoiler tags ||content|| around finter words
+	def generate_message(str, filterIndex):
+		new = ""
+		index = 0
+		for filter in filterIndex:
+			new = new + str[index:filter[0]] + "||" + str[filter[0]:filter[1]] + "||"
+			index = filter[1]
+		new = new + str[index:]
+		print(new)
+		return new
 	filterIndex = []
 	for filter in data["filters"]:
 		index = msg.content.upper().find(filter.upper())
 		if index > -1: filterIndex.append((index, index + len(filter)))
-	if len(filterIndex) > 0:
+
+	if len(filterIndex) > 0: #Filter words found, enact filter protocol
+		#Sort filtered words from the beginning of the message to the end
 		filterIndex.sort()
+		#Generate a reply message using generate_message nested function
 		reply = generate_message(msg.content, filterIndex)
+		#Send message back to channel
+		#TODO use original poster's profile picture
 		await channel.send(reply)
-
-
-
-#TODO make bot generate filtered message when a filter word is detected
-def generate_message(str, filterIndex):
-	new = ""
-	index = 0
-
-	for filter in filterIndex:
-		new = new + str[index:filter[0]] + "||" + str[filter[0]:filter[1]] + "||"
-		index = filter[1]
-		print(new)
-	new = new + str[index:]
-
-	print(new)
-
-	return new
-
-
-bot.run(auth_string)
-print("hello")
+		#TODO delete original message
+	
+try:
+	bot.run(auth_string)
+except errors.LoginFailure: #TODO allow token update in console window
+	print("Login unsuccessful. Please provide a new login token in auth.json. Exiting...")
