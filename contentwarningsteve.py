@@ -32,23 +32,19 @@ finally:
 	package_file.close()
 
 try:
-	data_file = open("data.json", "r")
-	data = json.load(data_file)
+	guilds_file = open("guilds.json", "r")
+	guilds = json.load(guilds_file)
 except FileNotFoundError:
-	print("No data file found. Creating new file...")
-	data = {
-		"filters" : ()
-	}
-	with open("data.json", "w") as data_file:
-		json.dump(data, data_file)
-	print("Data file created.")
+	print("No guilds file found. Creating new file...")
+	guilds = {}
+	with open("guilds.json", "w") as guilds_file:
+		json.dump(guilds, guilds_file)
+	print("Guilds file created.")
 except ValueError:
-	print("data.json is corrupted. Please fix the file manually, or delete it to restart with a fresh data file. Exiting...")
+	print("guilds.json is corrupted. Please fix the file manually, or delete it to restart with a fresh guilds file. Exiting...")
 	exit()
 finally:
-	data_file.close()
-
-print(data)
+	guilds_file.close()
 
 #TODO exit if auth.json or package.json not found
 BOT_NAME = package["name"]
@@ -60,8 +56,64 @@ BOT_DEPENDENCIES = package["dependencies"]
 BOT_ID = 605836370749030490
 TESTING_ID = 607087546333265920
 OWNER_ID = 138461123899949057
+BOT_COMMAND_PREFIX='>'
 
-bot = commands.Bot(command_prefix='>', description = BOT_DESC, owner_id = OWNER_ID, activity = discord.Activity(name = "Listening Closely"))
+cur_channel = None
+
+bot = commands.Bot(command_prefix=BOT_COMMAND_PREFIX, description = BOT_DESC, owner_id = OWNER_ID, activity = discord.Activity(name = "Listening Closely"))
+
+
+
+
+def register_guild(guild_id):
+	print(guild_id)
+	print(type(guild_id))
+	guilds[int(guild_id)] = {
+		"whitelist": [],
+		"blacklist": [],
+		"whitelist_enable": False,
+		"filters": []
+	}
+	guilds[5] = "test"
+	print(guilds)
+	save()
+
+
+async def pp(str):
+	print(str)
+	await cur_channel.send(str)
+
+def save():
+	print(guilds)
+	with open("guilds.json", "w") as guilds_file:
+		json.dump(guilds, guilds_file)
+
+
+
+#possibly never to be used
+def remove_guild(guild_id):
+	data.pop(guild_id)
+	save()
+
+
+def is_not_me():	#TODO get working
+	print("hello?")
+	def  predicate(ctx):
+		print(ctx.message.author.id, BOT_ID)
+		return ctx.message.author.id != BOT_ID
+	print("hi")
+	return commands.check(predicate)
+
+@bot.command()
+async def shutdown(channel):
+	with open("guilds.json", "w") as guilds_file:
+		json.dump(guilds, guilds_file)
+	await bot.logout()
+	exit()
+
+
+#COMMANDS
+
 
 #TODO remove
 @bot.command()
@@ -75,51 +127,128 @@ async def takecaresteve(channel):
 
 @bot.command()	#TODO delete_after?
 async def seelist(channel, confirm=None):
-	#TODO are you sure?
-	print(data["filters"])
-	await channel.send(data["filters"])
+	global cur_channel
+	cur_channel = channel
+	guild_id = channel.guild.id
+	await pp(type(guild_id))
+	await pp(guilds)
+	await pp(guild_id)
+	await pp(guild_id in guilds.keys())
+
+
+	if guild_id in guilds.keys():
+		#TODO are you sure?
+		filters = guilds[guild_id]["filters"]
+		await pp(filters)
+	else:
+		await pp("No data for server '" + channel.guild.name + "'")
 
 @bot.command()	#TODO delete_after?
 async def add(channel, keyword):
-	data["filters"].append(keyword)
-	with open("data.json", "w") as data_file:
-		json.dump(data, data_file)
-	str = "Added keyword {} to filter list".format(keyword)
-	print(str)
-	await channel.send(str)
+	global cur_channel
+	cur_channel = channel
+	guild_id = channel.guild.id
+
+	if guild_id not in guilds:
+		register_guild(guild_id)
+	guilds[guild_id]["filters"].append(keyword)
+	with open("guilds.json", "w") as guilds_file:
+		json.dump(guilds, guilds_file)
+	await pp("Added keyword {} to filter list".format(keyword))
+
 
 @bot.command()	#TODO delete_after?
 async def remove(channel, keyword):
+	global cur_channel
+	cur_channel = channel
+	guild_id = channel.guild.id
+	if guild_id not in guilds:
+		await pp("No data for server '" + channel.guild.name + "'")
 	try:
-		data["filters"].remove(keyword)
-		print("Successfully removed word from filter list.")
-		await channel.send("Successfully removed word from filter list.")
+		guilds[guild_id]["filters"].remove(keyword)
+		await pp("Successfully removed word from filter list.")
 	except ValueError:
-		print("Word not fould in filter list.")
-		await channel.send("Word not fould in filter list.")
+		await pp("Word not found in filter list.")
 
-def is_not_me():	#TODO get working
-	print("hello?")
-	def  predicate(ctx):
-		print(ctx.message.author.id, BOT_ID)
-		return ctx.message.author.id != BOT_ID
-	print("hi")
-	return commands.check(predicate)
+
+async def whitelist_on():
+	guilds[guild_id]["whitelist_enable"] = True
+	await pp("Whitelist mode enabled, blacklist off.")
+async def blacklist_on():
+	guilds[guild_id]["whitelist_enable"] = False
+	await pp("Blacklist mode enabled, whitelist off.")
 
 @bot.command()
-async def shutdown(channel):
-	with open("data.json", "w") as data_file:
-		json.dump(data, data_file)
-	await bot.logout()
-	exit()
+async def whitelist(channel, argument):
+	global cur_channel
+	cur_channel = channel
+	guild_id = channel.guild.id
+	if guild_id not in guilds:
+		register_guild(guild_id)
+
+	if argument is None:
+		guilds[guild_id]["whitelist"].append(channel.id)
+		await pp('#' + channel.name + "added to whitelist.")
+	elif argument == "print":
+		await pp(guilds[guild_id]["blacklist"])
+	elif argument.startswith("<#"):
+		channel_id = argument.strip(('<','#','>'))
+		guilds[guild_id]["whitelist"].append(channel_id)
+		await pp('#' + channel.guild.get_channel(channel_id).name + "added to whitelist.")
+	elif argument.lower() == "on": await whitelist_on()
+	elif argument.lower() == "off": await blacklist_on()
+	elif argument.lower() == "toggle":
+		if guilds[guild_id]["whitelist_enable"]: await blacklist_on()
+		else: await whitelist_on()
+	else:
+		for cnl in channel.guild.channels:
+			if cnl.name == argument:
+				channel_id = cnl.id
+				guilds[guild_id]["whitelist"].append(channel_id)
+				return
+		await pp("Unable to process command. Type a #channel-name, channel-name, or a setting such as 'on', 'off', 'toggle', or 'print'")
+
+@bot.command()
+async def blacklist(channel, argument):
+	guild_id = channel.guild.id
+	if guild_id not in guilds:
+		register_guild(guild_id)
+
+	if argument is None:
+		guilds[guild_id]["blacklist"].append(channel.id)
+		await pp('#' + channel.name + "added to blacklist.")
+	elif argument == "print":
+		await pp(guilds[guild_id]["blacklist"])
+	elif argument.startswith("<#"):
+		channel_id = argument.strip(('<','#','>'))
+		guilds[guild_id]["blacklist"].append(channel_id)
+		await pp('#' + channel.guild.get_channel(channel_id).name + "added to blacklist.")
+	elif argument.lower() == "on": await blacklist_on()
+	elif argument.lower() == "off": await whitelist_on()
+	elif argument.lower() == "toggle":
+		if guilds[guild_id]["whitelist_enable"]: await blacklist_on()
+		else: await whitelist_on()
+	else:
+		for cnl in channel.guild.channels:
+			if cnl.name == argument:
+				channel_id = cnl.id
+				guilds[guild_id]["blacklist"].append(channel_id)
+				return
+		await pp("Unable to process command. Type a #channel-name, channel-name, or a setting such as 'on', 'off', 'toggle', or 'print'")
+
+
+
 
 @bot.listen("on_message")
 async def filter_message(msg):
 
 	#TODO turn into decorations
 	channel = msg.channel
+	guild_id = channel.guild.id
 	if msg.author.bot: return
-	if channel.id != TESTING_ID: return
+	if channel.guild.id not in guilds: return
+	if msg.content.startswith(BOT_COMMAND_PREFIX): return
+
 
 	#Nested fucntion, inserts spoiler tags ||content|| around finter words
 	def generate_message(str, filterIndex):
@@ -134,7 +263,7 @@ async def filter_message(msg):
 
 	#Scan for filter words
 	filterIndex = []
-	for filter in data["filters"]:
+	for filter in guilds[guild_id]["filters"]:
 		index = msg.content.upper().find(filter.upper())
 		if index > -1: filterIndex.append((index, index + len(filter)))
 
@@ -161,6 +290,7 @@ async def filter_message(msg):
 
 		#Send message back to channel
 		await channel.send(embed=embed)
+		print(reply)
 		
 		#Delete user's message
 		await msg.delete()
