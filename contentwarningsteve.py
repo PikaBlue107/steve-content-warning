@@ -147,28 +147,23 @@ async def filter_message(msg):
 		#Generate a reply message using generate_message nested function
 		reply = generate_message(msg.content, filterIndex)
 
-		#Delete user's message
-		await msg.delete()
 
-		#Switch to user's profile picture and username
-		path_user = str(msg.author.avatar_url)
-		print(path_user)
-		username = msg.author.name
-		req = urllib.request.Request(path_user, headers={'User-Agent' : "Magic Browser"})
-		with urllib.request.urlopen(req) as con:
-			pfp = con.read()
-			await bot.user.edit(username=username, avatar=pfp)
-
+		#Get the user's profile picture and nickname
+		path_user = msg.author.avatar_url
+		nickname = msg.author.display_name
+		
+		#Create an Embed object with the user's filtered post
+		embed = discord.Embed(
+  			description=reply,
+  			color=0xecce8b
+		)
+		embed.set_author(name=nickname, icon_url=path_user)
 
 		#Send message back to channel
-		await channel.send(reply)
-
-		#Switch back to Steve username and profile picture
-		path_steve = "businessman.jpg"
-		username = "Steve, Content Warning Expert"
-		with open(path_steve, 'rb') as fp:
-			pfp = fp.read()
-			await bot.user.edit(username=username, avatar=pfp)
+		await channel.send(embed=embed)
+		
+		#Delete user's message
+		await msg.delete()
 	
 try:
 	bot.run(auth_string)
