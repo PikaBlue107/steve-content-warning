@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import client
 from discord import errors
 import json
+import urllib.request
 
 
 #Load 
@@ -130,20 +131,44 @@ async def filter_message(msg):
 		new = new + str[index:]
 		print(new)
 		return new
+
+	#Scan for filter words
 	filterIndex = []
 	for filter in data["filters"]:
 		index = msg.content.upper().find(filter.upper())
 		if index > -1: filterIndex.append((index, index + len(filter)))
 
+
 	if len(filterIndex) > 0: #Filter words found, enact filter protocol
+		
 		#Sort filtered words from the beginning of the message to the end
 		filterIndex.sort()
+		
 		#Generate a reply message using generate_message nested function
 		reply = generate_message(msg.content, filterIndex)
+
+		#Delete user's message
+		await msg.delete()
+
+		#Switch to user's profile picture and username
+		path_user = str(msg.author.avatar_url)
+		print(path_user)
+		username = msg.author.name
+		req = urllib.request.Request(path_user, headers={'User-Agent' : "Magic Browser"})
+		with urllib.request.urlopen(req) as con:
+			pfp = con.read()
+			await bot.user.edit(username=username, avatar=pfp)
+
+
 		#Send message back to channel
-		#TODO use original poster's profile picture
 		await channel.send(reply)
-		#TODO delete original message
+
+		#Switch back to Steve username and profile picture
+		path_steve = "businessman.jpg"
+		username = "Steve, Content Warning Expert"
+		with open(path_steve, 'rb') as fp:
+			pfp = fp.read()
+			await bot.user.edit(username=username, avatar=pfp)
 	
 try:
 	bot.run(auth_string)
