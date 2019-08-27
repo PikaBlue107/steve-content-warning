@@ -13,6 +13,9 @@ import urllib.request
 #TODO figure out file structure
 
 #MAJOR BUGS
+#Check Whitelist and Blacklist functionality
+#Check dictionary functionality
+#Check for pre-existing spoiler tags when generating spoiler message 
 
 #NEW FEATURES
 #TODO Toggle all-filter per user
@@ -20,8 +23,6 @@ import urllib.request
 #MINOR BUGS/ALTERATIONS
 #TODO improve logic in change_list
 #TODO decorator-ify repeated pre-function code
-
-cur_ctx = None
 
 
 class History:
@@ -34,6 +35,70 @@ class History:
 		self.user = user
 		self.nick = nick
 		self.safeword = safeword
+
+
+#Load 
+try:
+	auth_file = open("auth.json", "r")
+	auth_string = json.load(auth_file)["token"]
+except FileNotFoundError:
+	print("Authorization file does not exist. Exiting...")
+	exit()
+except ValueError:
+	print("auth.json is corrupted. Retrieve a new auth.json file, then relaunch. Exiting...")
+	exit()
+finally:
+	auth_file.close()
+
+try:
+	package_file = open("package.json", "r")
+	package = json.load(package_file)
+except FileNotFoundError:
+	print("package.json file does not exist. Exiting...")
+	exit()
+except ValueError:
+	print("package.json is corrupted. Retreive a new package.json file, then relaunch. Exiting...")
+	exit()
+finally:
+	package_file.close()
+
+try:
+	guilds_file = open("guilds.pickle", "rb")
+	guilds = pickle.load(guilds_file)
+except FileNotFoundError:
+	print("No guilds file found. Creating new file...")
+	guilds = {}
+	with open("guilds.pickle", "wb") as guilds_file:
+		pickle.dump(guilds, guilds_file)
+	print("Guilds file created.")
+except ValueError:
+	print("guilds.pickle is corrupted. Please fix the file manually, or delete it to restart with a fresh guilds file. Exiting...")
+	exit()
+finally:
+	guilds_file.close()
+
+#Declare variables
+BOT_NAME = package["name"]
+BOT_VERSION = package["version"]
+BOT_DESC = package["description"]
+BOT_MAIN = package["main"]
+BOT_AUTHOR = package["author"]
+BOT_DEPENDENCIES = package["dependencies"]
+BOT_ID = 605836370749030490
+TESTING_ID = 607087546333265920
+OWNER_ID = 138461123899949057
+BOT_COMMAND_PREFIX='>'
+
+#Initialize
+bot = commands.Bot(command_prefix=BOT_COMMAND_PREFIX, description = BOT_DESC, owner_id = OWNER_ID, activity = discord.Activity(name = "Listening Closely"))
+
+
+
+
+cur_ctx = None
+
+
+
 
 def register_guild(guild_id):
 	print(guild_id)
@@ -254,60 +319,7 @@ async def filter_message(msg):
 
 
 
-#Load 
-try:
-	auth_file = open("auth.json", "r")
-	auth_string = json.load(auth_file)["token"]
-except FileNotFoundError:
-	print("Authorization file does not exist. Exiting...")
-	exit()
-except ValueError:
-	print("auth.json is corrupted. Retrieve a new auth.json file, then relaunch. Exiting...")
-	exit()
-finally:
-	auth_file.close()
 
-try:
-	package_file = open("package.json", "r")
-	package = json.load(package_file)
-except FileNotFoundError:
-	print("package.json file does not exist. Exiting...")
-	exit()
-except ValueError:
-	print("package.json is corrupted. Retreive a new package.json file, then relaunch. Exiting...")
-	exit()
-finally:
-	package_file.close()
-
-try:
-	guilds_file = open("guilds.pickle", "rb")
-	guilds = pickle.load(guilds_file)
-except FileNotFoundError:
-	print("No guilds file found. Creating new file...")
-	guilds = {}
-	with open("guilds.pickle", "wb") as guilds_file:
-		pickle.dump(guilds, guilds_file)
-	print("Guilds file created.")
-except ValueError:
-	print("guilds.pickle is corrupted. Please fix the file manually, or delete it to restart with a fresh guilds file. Exiting...")
-	exit()
-finally:
-	guilds_file.close()
-
-#Declare variables
-BOT_NAME = package["name"]
-BOT_VERSION = package["version"]
-BOT_DESC = package["description"]
-BOT_MAIN = package["main"]
-BOT_AUTHOR = package["author"]
-BOT_DEPENDENCIES = package["dependencies"]
-BOT_ID = 605836370749030490
-TESTING_ID = 607087546333265920
-OWNER_ID = 138461123899949057
-BOT_COMMAND_PREFIX='>'
-
-#Initialize
-bot = commands.Bot(command_prefix=BOT_COMMAND_PREFIX, description = BOT_DESC, owner_id = OWNER_ID, activity = discord.Activity(name = "Listening Closely"))
 
 #Run
 try:
