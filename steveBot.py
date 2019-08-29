@@ -227,7 +227,13 @@ async def change_list(ctx, white, argument=None):
 	if argument is None: 
 		await register_channel()
 	if  argument == "print":	#User wants to print the list of whitelists/blacklists
-		await pp(guilds[guild_id][string])
+		print_list = []
+		for channel_id in guilds[guild_id][string]:
+			for channel in ctx.guild.channels:
+				if channel.id == channel_id:
+					print_list.append('#'+channel.name)
+					break
+		await pp(print_list)
 	elif argument.lower() == "on": await whitelist_on() if white else await blacklist_on()
 	elif argument.lower() == "off": await blacklist_on() if white else await whitelist_on()
 	elif argument.lower() == "toggle":
@@ -243,7 +249,7 @@ async def whitelist(ctx, argument=None):
 	await change_list(ctx=ctx, white=True, argument=argument)
 	
 @bot.command()
-async def blacklist(ctx, argument):
+async def blacklist(ctx, argument=None):
 	await change_list(ctx=ctx, white=False, argument=argument)
 
 
@@ -255,6 +261,9 @@ async def filter_message(msg):
 	if msg.author.bot: return
 	if channel.guild.id not in guilds: return
 	if msg.content.startswith(BOT_COMMAND_PREFIX): return
+	print(guilds[guild_id]["whitelist_enable"])
+	print(list(guilds[guild_id]["whitelist"].keys()))
+	print(list(guilds[guild_id]["blacklist"].keys()))
 	if guilds[guild_id]["whitelist_enable"]:
 		if channel.id not in list(guilds[guild_id]["whitelist"].keys()): return
 	else:

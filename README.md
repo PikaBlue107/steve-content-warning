@@ -8,12 +8,13 @@ Check Whitelist and Blacklist functionality
 Check for pre-existing spoiler tags when generating spoiler message 
 
 #NEW FEATURES
-TODO Toggle all-filter per user
-TODO override close
-TODO Switch to class structure
-TODO improve functionality of >whitelist print
-TODO split whitelist functionality. Add and Remove
+Toggle all-filter per user
+override close
+Switch to class structure
+Add sorting options to ####list print
+split whitelist functionality. Add and Remove
+History and dictionaries tostring implementation
 
 #MINOR BUGS/ALTERATIONS
-TODO improve logic in change_list
-TODO decorator-ify repeated pre-function code
+improve logic in change_list
+decorator-ify repeated pre-function code
