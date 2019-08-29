@@ -260,7 +260,6 @@ async def filter_message(msg):
 	else:
 		if channel.id in list(guilds[guild_id]["blacklist"].keys()): return
 
-
 	#Nested fucntion, inserts spoiler tags ||content|| around finter words
 	def generate_message(str, filterIndex):
 		new = ""
