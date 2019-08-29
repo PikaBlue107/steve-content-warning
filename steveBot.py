@@ -9,6 +9,7 @@ from json import JSONDecodeError
 
 #My files
 from steveIO import SteveIO
+from history import History
 
 
 AUTH_LOC = "auth.json"
@@ -25,6 +26,7 @@ AUTH_CORRUPT = 2
 PACKAGE_MISSING = 3
 PACKAGE_CORRUPT = 4
 GUILDS_CORRUPT = 5
+BAD_LOGIN = 6
 
 try:
 	auth_string = io.loadAuth()
@@ -73,11 +75,11 @@ def start():
 		bot.run(auth_string)
 	except errors.LoginFailure:
 		print("Login unsuccessful. Please provide a new login token in auth.json. Exiting...")
-		exit(2)
+		exit(BAD_LOGIN)
 
 
 
-
+#Utility functions
 def register_guild(guild_id):
 	print(guild_id)
 	print(type(guild_id))
@@ -107,6 +109,28 @@ def remove_guild(guild_id):
 	data.pop(guild_id)
 	io.save(guilds)
 
+def parse_channel(ctx, argument):
+	channel = ctx.channel
+	channel_id = channel.id
+
+	if argument is None:
+		return channel
+	elif argument.startswith("<#"):
+		channel_id = int(argument.strip('<').strip('#').strip('>'))
+		for channel in ctx.guild.channels:
+			if channel.id == channel_id:
+				return channel
+	else:
+		for channel in ctx.guild.channels:
+			if channel.name == argument:
+				return channel
+		#Channel not found.
+		return None
+				
+
+
+
+
 
 # def is_not_me():	#TODO get working
 # 	print("hello?")
@@ -116,20 +140,6 @@ def remove_guild(guild_id):
 # 	print("hi")
 # 	return commands.check(predicate)
 
-@bot.command()
-async def shutdown(ctx):
-	print("shutdown")
-	with open("tmp.txt", "w") as tmp:
-		tmp.write("false")
-	io.save(guilds)
-	await bot.logout()
-
-@bot.command()
-async def restart(ctx):
-	with open("tmp.txt", "w") as tmp:
-		tmp.write("true")
-	io.save(guilds)
-	await bot.logout()
 
 #TODO override close
 #async def close(self, return=ret):
@@ -138,12 +148,10 @@ async def restart(ctx):
 
 #COMMANDS
 
-#TODO remove
 @bot.command()
 async def ping(ctx):
 	await ctx.send('pong')
 
-#TODO remove
 @bot.command()
 async def takecaresteve(ctx):
 	await ctx.send('you too')
@@ -153,11 +161,6 @@ async def seelist(ctx, confirm=None):
 	global cur_ctx
 	cur_ctx = ctx
 	guild_id = ctx.guild.id
-	await pp(type(guild_id))
-	await pp(guilds)
-	await pp(guild_id)
-	await pp(guild_id in guilds.keys())
-
 
 	if guild_id in guilds.keys():
 		#TODO are you sure?
@@ -170,8 +173,8 @@ async def seelist(ctx, confirm=None):
 async def add(ctx, keyword):
 	global cur_ctx
 	cur_ctx = ctx
-
 	guild_id = ctx.guild.id
+
 	if guild_id not in guilds:
 		register_guild(guild_id)
 
@@ -200,6 +203,14 @@ async def change_list(ctx, white, argument=None):
 	async def blacklist_on():
 		guilds[guild_id]["whitelist_enable"] = False
 		await pp("Blacklist mode enabled, whitelist off.")
+	async def register_channel():
+		channel = parse_channel(ctx, argument)
+		if channel is not None:
+			guilds[guild_id][string][channel.id] = history
+			await pp('#' + channel.name + " added to " + string + ".")
+		else:
+			await pp("Unable to process command. Type a #channel-name, channel-name, or a setting such as 'on', 'off', 'toggle', or 'print'")
+
 
 	global cur_ctx
 	cur_ctx = ctx
@@ -212,27 +223,19 @@ async def change_list(ctx, white, argument=None):
 	history = make_history(ctx)
 	string = "whitelist" if white else "blacklist"
 
-	if argument is None:
-		guilds[guild_id][string][channel_id] = history
-		await pp('#' + channel.name + "added to " + string + ".")
-	elif argument == "print":
+	#">whitelist". Targets the current channel
+	if argument is None: 
+		await register_channel()
+	if  argument == "print":	#User wants to print the list of whitelists/blacklists
 		await pp(guilds[guild_id][string])
-	elif argument.startswith("<#"):
-		channel_id = int(argument.strip('<').strip('#').strip('>'))
-		guilds[guild_id][string][channel_id] = history
-		await pp('#' + ctx.guild.get_channel(channel_id).name + " added to " + string + ".")
 	elif argument.lower() == "on": await whitelist_on() if white else await blacklist_on()
 	elif argument.lower() == "off": await blacklist_on() if white else await whitelist_on()
 	elif argument.lower() == "toggle":
 		if guilds[guild_id]["whitelist_enable"]: await blacklist_on()
 		else: await whitelist_on()
+	#">whitelist testing, >whitelist #testing". Searches for the specified channel through the current guild.
 	else:
-		for cnl in ctx.guild.channels:
-			if cnl.name == argument:
-				channel_id = cnl.id
-				guilds[guild_id][string][channel_id] = history
-				return
-		await pp("Unable to process command. Type a #channel-name, channel-name, or a setting such as 'on', 'off', 'toggle', or 'print'")
+		await register_channel()
 	io.save(guilds)
 
 @bot.command()
@@ -252,6 +255,10 @@ async def filter_message(msg):
 	if msg.author.bot: return
 	if channel.guild.id not in guilds: return
 	if msg.content.startswith(BOT_COMMAND_PREFIX): return
+	if guilds[guild_id]["whitelist_enable"]:
+		if channel.id not in list(guilds[guild_id]["whitelist"].keys()): return
+	else:
+		if channel.id in list(guilds[guild_id]["blacklist"].keys()): return
 
 
 	#Nested fucntion, inserts spoiler tags ||content|| around finter words
@@ -299,6 +306,27 @@ async def filter_message(msg):
 		#Delete user's message
 		await msg.delete()
 
+# @bot.command()
+# async def botchannel(ctx):
+
+# @bot.command()
+# async def botchannel(ctx, channel):
+
+@bot.command()
+async def shutdown(ctx):
+	print("shutdown")
+	with open("tmp.txt", "w") as tmp:
+		tmp.write("false")
+	io.save(guilds)
+	await bot.logout()
+
+@bot.command()
+async def restart(ctx):
+	with open("tmp.txt", "w") as tmp:
+		tmp.write("true")
+	io.save(guilds)
+	await bot.logout()
+	
 
 	# @self.event
 	# async def on_ready():

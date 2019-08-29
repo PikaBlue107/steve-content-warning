@@ -1,10 +1,10 @@
+setlocal EnableDelayedExpansion
 :loop
 @echo on
 py steveBot.py
-@echo off
 IF EXIST "tmp.txt" ( 
-	set /p texte=< tmp.txt
+	set /p bool=<tmp.txt
 	del tmp.txt
-	if "%texte%"==true goto :loop
+	if "!bool!"=="true" goto :loop
 )
 pause
