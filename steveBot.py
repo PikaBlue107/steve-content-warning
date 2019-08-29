@@ -1,81 +1,54 @@
+#Discord
 import discord
 from discord.ext import commands
-from discord import client
 from discord import errors
-import json
-import pickle
-import urllib.request
+
+#Error handling
+from pickle import UnpicklingError
+from json import JSONDecodeError
+
+#My files
+from steveIO import SteveIO
 
 
+AUTH_LOC = "auth.json"
+PACKAGE_LOC = "package.json"
+GUILDS_LOC = "guilds.pickle"
 
+#Create IO Object for loading and saving data
+io = SteveIO(auth_loc=AUTH_LOC, package_loc=PACKAGE_LOC, guilds_loc=GUILDS_LOC)
 
-#PRIORITY BUGS
-#TODO figure out file structure
-
-#MAJOR BUGS
-#Check Whitelist and Blacklist functionality
-#Check dictionary functionality
-#Check for pre-existing spoiler tags when generating spoiler message 
-
-#NEW FEATURES
-#TODO Toggle all-filter per user
-
-#MINOR BUGS/ALTERATIONS
-#TODO improve logic in change_list
-#TODO decorator-ify repeated pre-function code
-
-
-class History:
-	time = None
-	user = None
-	safeword = None
-	nick = None
-	def __init__(self, time, user, nick, safeword=None):
-		self.time = time
-		self.user = user
-		self.nick = nick
-		self.safeword = safeword
-
-
-#Load 
-try:
-	auth_file = open("auth.json", "r")
-	auth_string = json.load(auth_file)["token"]
-except FileNotFoundError:
-	print("Authorization file does not exist. Exiting...")
-	exit()
-except ValueError:
-	print("auth.json is corrupted. Retrieve a new auth.json file, then relaunch. Exiting...")
-	exit()
-finally:
-	auth_file.close()
+#Error codes
+SUCCESS = 0
+AUTH_MISSING = 1
+AUTH_CORRUPT = 2
+PACKAGE_MISSING = 3
+PACKAGE_CORRUPT = 4
+GUILDS_CORRUPT = 5
 
 try:
-	package_file = open("package.json", "r")
-	package = json.load(package_file)
+	auth_string = io.loadAuth()
 except FileNotFoundError:
-	print("package.json file does not exist. Exiting...")
-	exit()
-except ValueError:
-	print("package.json is corrupted. Retreive a new package.json file, then relaunch. Exiting...")
-	exit()
-finally:
-	package_file.close()
+	print("auth.json not found at filepath '" + AUTH_LOC + "'. Exiting...")
+	exit(AUTH_MISSING)
+except JSONDecodeError:
+	print(AUTH_LOC + " is unreadable by JSON. Please fix manually or by retrieving a new auth.json file. Exiting...")
+	exit(AUTH_CORRUPT)
 
 try:
-	guilds_file = open("guilds.pickle", "rb")
-	guilds = pickle.load(guilds_file)
+	package = io.loadPackage()
 except FileNotFoundError:
-	print("No guilds file found. Creating new file...")
-	guilds = {}
-	with open("guilds.pickle", "wb") as guilds_file:
-		pickle.dump(guilds, guilds_file)
-	print("Guilds file created.")
-except ValueError:
-	print("guilds.pickle is corrupted. Please fix the file manually, or delete it to restart with a fresh guilds file. Exiting...")
-	exit()
-finally:
-	guilds_file.close()
+	print("package.json not found at filepath '" + PACKAGE_LOC + "'. Exiting...")
+	exit(PACKAGE_MISSING)
+except JSONDecodeError:
+	print(PACKAGE_LOC + " is unreadable by JSON. Please fix manually or by retrieving a new package.json file. Exiting...")
+	exit(PACKAGE_CORRUPT)
+
+try:
+	guilds = io.loadGuilds()
+except UnpicklingError:
+	print(GUILDS_LOC + " is unreadable by Python Pickle. Remove guilds.pickle from destination '" + GUILDS_LOC + "' and then restart to generate a blank file. Exiting...")
+	exit(GUILDS_CORRUPT)
 
 #Declare variables
 BOT_NAME = package["name"]
@@ -89,13 +62,18 @@ TESTING_ID = 607087546333265920
 OWNER_ID = 138461123899949057
 BOT_COMMAND_PREFIX='>'
 
-#Initialize
-bot = commands.Bot(command_prefix=BOT_COMMAND_PREFIX, description = BOT_DESC, owner_id = OWNER_ID, activity = discord.Activity(name = "Listening Closely"))
-
-
-
-
 cur_ctx = None
+
+
+#Initialize
+bot = commands.Bot(command_prefix=BOT_COMMAND_PREFIX, description = BOT_DESC, owner_id = OWNER_ID)
+
+def start():
+	try:
+		bot.run(auth_string)
+	except errors.LoginFailure:
+		print("Login unsuccessful. Please provide a new login token in auth.json. Exiting...")
+		exit(2)
 
 
 
@@ -107,20 +85,19 @@ def register_guild(guild_id):
 		"whitelist": {},
 		"blacklist": {},
 		"whitelist_enable": False,
-		"filters": {}
+		"filters": {},
+		"bot_channel": None
 	}
 	print(guilds)
-	save()
+	io.save(guilds)
+
+def update_guild(guild):
+	guild["bot_channel"] = None
 
 
 async def pp(str):
 	print(str)
 	await cur_ctx.send(str)
-
-def save():
-	print(guilds)
-	with open("guilds.pickle", "wb") as guilds_file:
-		pickle.dump(guilds, guilds_file)
 
 def make_history(ctx, safeword=None):
 	return History(time=ctx.message.created_at, user=ctx.author.id, nick=ctx.author.display_name, safeword=safeword)
@@ -128,26 +105,38 @@ def make_history(ctx, safeword=None):
 #possibly never to be used
 def remove_guild(guild_id):
 	data.pop(guild_id)
-	save()
+	io.save(guilds)
 
 
-def is_not_me():	#TODO get working
-	print("hello?")
-	def  predicate(ctx):
-		print(ctx.message.author.id, BOT_ID)
-		return ctx.message.author.id != BOT_ID
-	print("hi")
-	return commands.check(predicate)
+# def is_not_me():	#TODO get working
+# 	print("hello?")
+# 	def  predicate(ctx):
+# 		print(ctx.message.author.id, BOT_ID)
+# 		return ctx.message.author.id != BOT_ID
+# 	print("hi")
+# 	return commands.check(predicate)
 
 @bot.command()
 async def shutdown(ctx):
-	save()
+	print("shutdown")
+	with open("tmp.txt", "w") as tmp:
+		tmp.write("false")
+	io.save(guilds)
 	await bot.logout()
-	exit()
+
+@bot.command()
+async def restart(ctx):
+	with open("tmp.txt", "w") as tmp:
+		tmp.write("true")
+	io.save(guilds)
+	await bot.logout()
+
+#TODO override close
+#async def close(self, return=ret):
+
 
 
 #COMMANDS
-
 
 #TODO remove
 @bot.command()
@@ -187,7 +176,7 @@ async def add(ctx, keyword):
 		register_guild(guild_id)
 
 	guilds[guild_id]["filters"][keyword] = make_history(ctx)
-	save()
+	io.save(guilds)
 	await pp("Added keyword {} to filter list".format(keyword))
 
 
@@ -218,7 +207,7 @@ async def change_list(ctx, white, argument=None):
 	guild_id = ctx.guild.id
 	if guild_id not in guilds:
 		register_guild(guild_id)
-	channel = ctx.channel
+	channel_id = ctx.channel.id
 
 	history = make_history(ctx)
 	string = "whitelist" if white else "blacklist"
@@ -244,15 +233,15 @@ async def change_list(ctx, white, argument=None):
 				guilds[guild_id][string][channel_id] = history
 				return
 		await pp("Unable to process command. Type a #channel-name, channel-name, or a setting such as 'on', 'off', 'toggle', or 'print'")
-	save()
+	io.save(guilds)
 
 @bot.command()
 async def whitelist(ctx, argument=None):
-	change_list(ctx=ctx, white=True, argument=argument)
+	await change_list(ctx=ctx, white=True, argument=argument)
 	
 @bot.command()
 async def blacklist(ctx, argument):
-	change_list(ctx=ctx, white=False, argument=argument)
+	await change_list(ctx=ctx, white=False, argument=argument)
 
 
 @bot.listen("on_message")
@@ -309,20 +298,9 @@ async def filter_message(msg):
 		
 		#Delete user's message
 		await msg.delete()
-	
 
 
-
-
-
-
-
-
-
-
-
-#Run
-try:
-	bot.run(auth_string)
-except errors.LoginFailure:
-	print("Login unsuccessful. Please provide a new login token in auth.json. Exiting...")
+	# @self.event
+	# async def on_ready():
+	# 	for guild_id in list(guilds.keys()):
+start()
